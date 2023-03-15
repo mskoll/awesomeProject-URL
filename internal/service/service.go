@@ -6,8 +6,8 @@ import (
 )
 
 type Url interface {
-	CreateUrl(url model.URL) (int, error)
-	GetUrl(shortUrl string) (model.URL, error)
+	CreateUrl(url model.URL) (string, error)
+	GetUrl(shortUrl string) (string, error)
 }
 
 type Service struct {
@@ -15,5 +15,5 @@ type Service struct {
 }
 
 func NewService(repository *repository.Repository) *Service {
-	return &Service{Url: NewUrlService(repository.Url)}
+	return &Service{Url: NewUrlService(repository)}
 }

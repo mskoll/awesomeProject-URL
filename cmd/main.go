@@ -9,12 +9,13 @@ import (
 	"flag"
 	"github.com/spf13/viper"
 	"log"
-	"os"
+	"net/http"
 	"os/signal"
-	"time"
+	"syscall"
 )
 
 func init() {
+	// запись флага запуска в конфиг
 	flagDB := flag.Bool("d", false, "data from the database")
 	flag.Parse()
 	viper.Set("flagDB", flagDB)
@@ -39,7 +40,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("DB-init error: %s", err.Error())
 	}
-	log.Printf("DB connected\n")
+	log.Printf("[M] DB connected\n")
 
 	// инициализация репозитория для работы с БД
 	repositories := repository.NewRepository(db)
@@ -53,23 +54,20 @@ func main() {
 
 	// запуск сервера
 	go func() {
-		if err := server.Run(viper.GetString("port"), handlers.InitRoutes()); err != nil {
-			log.Printf("Server error: %s", err.Error())
+		if err := server.Run(viper.GetString("port"), handlers.InitRoutes()); err != http.ErrServerClosed {
+			log.Fatalf("Server error: %s", err.Error())
 		}
 	}()
-	log.Printf("Server started\n")
-	// канал для получения сигналов системы
-	stop := make(chan os.Signal, 1)
-	// получение сигнала, что приложение завершилось
-	signal.Notify(stop, os.Interrupt)
-	<-stop
+	log.Printf("[M] Server started\n")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	<-ctx.Done()
+	log.Printf("[M] shutting down server gracefully\n")
+
 	if err := server.Shutdown(ctx); err != nil {
-		log.Printf("Server shutdown error: %s", err.Error())
+		log.Printf("Server shutdown error %s\n", err.Error())
 	}
-
 	if err := db.Close(); err != nil {
 		log.Printf("DB connection close error: %s", err.Error())
 	}
@@ -77,7 +75,6 @@ func main() {
 
 // initConfig иницаиализация конфига
 func initConfig() error {
-	//viper.AddConfigPath("internal/config") for IDE
 	viper.AddConfigPath("../internal/config")
 	viper.SetConfigName("config")
 	return viper.ReadInConfig()

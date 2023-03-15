@@ -6,8 +6,9 @@ import (
 )
 
 type Url interface {
-	CreateUrl(url model.URL) (int, error)
+	CreateUrl(url model.URL) error
 	GetUrl(shortUrl string) (model.URL, error)
+	ContainsUrl(url model.URL) (model.URL, bool)
 }
 
 type Repository struct {
